@@ -1,0 +1,55 @@
+{
+  "name": "sports-tool",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "postbuild": "node scripts/remove-build-secrets.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "predeploy": "pnpm build",
+    "deploy": "wrangler deploy",
+    "cf:typegen": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "latest",
+    "echarts": "latest",
+    "hono": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-router-dom": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "latest",
+    "@cloudflare/workers-types": "latest",
+    "@eslint/js": "latest",
+    "@playwright/test": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "latest",
+    "eslint": "latest",
+    "eslint-plugin-react-hooks": "latest",
+    "eslint-plugin-react-refresh": "latest",
+    "globals": "latest",
+    "typescript": "6.0.3",
+    "typescript-eslint": "latest",
+    "vite": "latest",
+    "vite-plugin-pwa": "latest",
+    "vitest": "latest",
+    "workbox-window": "latest",
+    "wrangler": "latest"
+  }
+}

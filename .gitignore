@@ -1,0 +1,23 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# Cloudflare local state and environment variables
+.wrangler/
+.dev.vars
+.env
+.env.*
+!.env.example
+
+# Test output
+playwright-report/
+test-results/
+
+# Logs and local editor files
+*.log
+.DS_Store
+.idea/
+.vscode/
