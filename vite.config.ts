@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     cloudflare(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       manifest: {
         name: 'sports_tool',
         short_name: 'sports_tool',

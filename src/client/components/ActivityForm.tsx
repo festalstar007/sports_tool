@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { ConfirmedActivityInput } from '../../shared/activity-schema';
 import { confirmedActivitySchema } from '../../shared/activity-schema';
 import {
@@ -22,6 +22,7 @@ type Props = {
   submitLabel: string;
   mode?: FormMode;
   busy?: boolean;
+  onValuesChange?: (values: ActivityFormValues) => void;
   onSubmit: (data: ConfirmedActivityInput) => Promise<void> | void;
 };
 
@@ -67,6 +68,74 @@ const allFieldKeys = [
 const manualBasicKeys = ['startedAtLocal', 'distanceKm', 'duration', 'avgHeartRateBpm'] as const;
 const manualOptionalKeys = ['caloriesKcal', 'steps', 'elevationGainMeters', 'elevationLossMeters'] as const;
 
+type ValidationIssue = { field: keyof ActivityFormValues | 'form'; message: string };
+
+function validateField(
+  field: keyof ActivityFormValues,
+  values: ActivityFormValues,
+  isManual: boolean,
+): string | null {
+  if (field === 'sportType') return values.sportType ? null : '请选择跑步或步行';
+  if (field === 'startedAtLocal') {
+    return values.startedAtLocal && !Number.isNaN(Date.parse(fromShanghaiDateTimeLocal(values.startedAtLocal)))
+      ? null
+      : '请填写有效的运动时间';
+  }
+  if (field === 'distanceKm') {
+    const distanceKm = Number(values.distanceKm);
+    if (!values.distanceKm.trim() || !Number.isFinite(distanceKm) || distanceKm <= 0) {
+      return '请填写有效的运动距离';
+    }
+    return distanceKm > 200 ? '运动距离不能超过 200 公里' : null;
+  }
+  if (field === 'duration') {
+    const durationSeconds = parseDuration(values.duration);
+    if (durationSeconds == null) return '请填写有效的运动时长（分钟和秒需为 0–59）';
+    if (durationSeconds <= 0) return '运动时长必须大于 0';
+    return durationSeconds > 172_800 ? '运动时长不能超过 48 小时' : null;
+  }
+  if (field === 'avgPace') {
+    if (isManual || !values.avgPace.trim()) return null;
+    return parsePace(values.avgPace) == null ? '配速格式应为 10:23，秒数需为 0–59' : null;
+  }
+
+  const nonNegativeLabels: Partial<Record<keyof ActivityFormValues, string>> = {
+    caloriesKcal: '总消耗热量',
+    steps: '步数',
+    elevationGainMeters: '累计爬升',
+    elevationLossMeters: '累计下降',
+  };
+  const nonNegativeLabel = nonNegativeLabels[field];
+  if (nonNegativeLabel) {
+    const value = values[field].trim();
+    return value && (!Number.isFinite(Number(value)) || Number(value) < 0) ? `${nonNegativeLabel}不能小于 0` : null;
+  }
+
+  const positiveLabels: Partial<Record<keyof ActivityFormValues, string>> = {
+    avgSpeedKmh: '平均速度',
+    avgCadenceSpm: '平均步频',
+    avgStrideCm: '平均步幅',
+    avgHeartRateBpm: '平均心率',
+  };
+  const positiveLabel = positiveLabels[field];
+  if (positiveLabel && (!isManual || field === 'avgHeartRateBpm')) {
+    const value = values[field].trim();
+    return value && (!Number.isFinite(Number(value)) || Number(value) <= 0) ? `${positiveLabel}必须大于 0` : null;
+  }
+  return null;
+}
+
+function validateFormValues(values: ActivityFormValues, isManual: boolean): ValidationIssue | null {
+  const fields: Array<keyof ActivityFormValues> = isManual
+    ? ['sportType', ...manualBasicKeys, ...manualOptionalKeys]
+    : ['sportType', ...allFieldKeys];
+  for (const field of fields) {
+    const message = validateField(field, values, isManual);
+    if (message) return { field, message };
+  }
+  return null;
+}
+
 export function ActivityForm({
   initialValues,
   importId = null,
@@ -74,10 +143,13 @@ export function ActivityForm({
   submitLabel,
   mode = 'review',
   busy,
+  onValuesChange,
   onSubmit,
 }: Props) {
   const [values, setValues] = useState(initialValues);
-  const [error, setError] = useState<string | null>(null);
+  const valuesRef = useRef(initialValues);
+  const [error, setError] = useState<ValidationIssue | null>(null);
+  const [validationStarted, setValidationStarted] = useState(false);
   const isManual = mode === 'manual' || (mode === 'edit' && importId === null);
 
   const parsed = useMemo(() => {
@@ -111,14 +183,37 @@ export function ActivityForm({
 
   const warnings = parsed ? validateActivityConsistency(parsed) : [];
 
+  function updateValue<Key extends keyof ActivityFormValues>(key: Key, value: ActivityFormValues[Key]) {
+    const next = { ...valuesRef.current, [key]: value };
+    valuesRef.current = next;
+    setValues(next);
+    onValuesChange?.(next);
+  }
+
+  function revalidateAfterBlur(field: keyof ActivityFormValues) {
+    if (validationStarted) {
+      setError(validateFormValues(valuesRef.current, isManual));
+      return;
+    }
+    const message = validateField(field, valuesRef.current, isManual);
+    setError((current) => {
+      if (message) return { field, message };
+      return current?.field === field ? null : current;
+    });
+  }
+
+  function updateSportType(sportType: ActivityFormValues['sportType']) {
+    updateValue('sportType', sportType);
+    revalidateAfterBlur('sportType');
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    setError(null);
-    if (!values.sportType) return setError('请选择跑步或步行');
-    if (!values.distanceKm.trim() || Number(values.distanceKm) <= 0) return setError('请填写有效的运动距离');
-    if (!values.duration.trim() || !parseDuration(values.duration)) return setError('请填写有效的运动时长');
-    if (!isManual && values.avgPace.trim() && parsePace(values.avgPace) == null) return setError('配速格式应为 10:23');
-    if (!parsed) return setError('请检查距离、时长和必填字段');
+    setValidationStarted(true);
+    const validationError = validateFormValues(valuesRef.current, isManual);
+    setError(validationError);
+    if (validationError) return;
+    if (!parsed) return setError({ field: 'form', message: '请检查距离、时长和必填字段' });
     await onSubmit(parsed);
   }
 
@@ -138,7 +233,8 @@ export function ActivityForm({
           <DurationInput
             value={values.duration}
             disabled={busy}
-            onChange={(duration) => setValues((current) => ({ ...current, duration }))}
+            onChange={(duration) => updateValue('duration', duration)}
+            onBlur={() => revalidateAfterBlur('duration')}
           />
         </div>
       );
@@ -157,7 +253,8 @@ export function ActivityForm({
             step={field.step}
             value={values[field.key]}
             disabled={busy}
-            onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}
+            onChange={(event) => updateValue(field.key, event.target.value)}
+            onBlur={() => revalidateAfterBlur(field.key)}
           />
           {field.unit && <span>{field.unit}</span>}
         </span>
@@ -182,7 +279,7 @@ export function ActivityForm({
               role="radio"
               aria-checked={values.sportType === sport}
               key={sport}
-              onClick={() => setValues((current) => ({ ...current, sportType: sport }))}
+              onClick={() => updateSportType(sport)}
             >
               <span>{sport === 'running' ? '跑' : '走'}</span>
               {sport === 'running' ? '跑步' : '步行'}
@@ -217,7 +314,7 @@ export function ActivityForm({
           {warnings.map((warning) => <p key={`${warning.code}-${warning.message}`}>{warning.message}</p>)}
         </aside>
       )}
-      {error && <p className="form-error" role="alert">{error}</p>}
+      {error && <p className="form-error" role="alert">{error.message}</p>}
       <button className="primary-button sticky-submit" type="submit" disabled={busy}>
         {busy ? '正在保存…' : submitLabel}
       </button>

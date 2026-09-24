@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { PwaUpdatePrompt } from './PwaUpdatePrompt';
 
 const titles: Record<string, string> = {
   '/': '今日运动',
@@ -23,6 +24,7 @@ export function AppLayout() {
       <main className="page-content">
         <Outlet />
       </main>
+      <PwaUpdatePrompt />
       <nav className="bottom-nav" aria-label="主要导航">
         <NavLink to="/" end>
           <span aria-hidden="true">＋</span>
