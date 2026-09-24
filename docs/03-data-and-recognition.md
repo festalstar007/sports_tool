@@ -93,6 +93,18 @@ ON activities(sport_type, started_at DESC);
 
 `source_type = 'manual'` 时 `import_id` 为 `NULL`；截图记录仍使用唯一的导入 ID。删除策略由服务层明确执行：手动记录只删除活动行，截图记录同时删除活动、导入和 R2 对象。SQLite 外键行为不得被隐式假设。
 
+### 3.1 R2 截图对象键
+
+新上传截图使用以下对象键：
+
+```text
+YYYYMM/<UTC Unix 秒>_<8 位随机数字>.<扩展名>
+```
+
+例如：`202609/1790238567_12345678.jpg`。`YYYYMM` 与 Unix 时间戳均按 UTC 计算；随机部分固定为 8 位十进制数字并保留前导零。扩展名根据上传内容类型取 `jpg`、`png` 或 `webp`。
+
+R2 的“文件夹”是对象键前缀，不是实际目录。D1 的 `activity_imports.image_key` 保存完整对象键。本次变更不迁移旧对象；需要的数据可按新规则重新上传。
+
 ## 4. AI 输出协议
 
 Workers AI 必须被要求只返回 JSON，不返回 Markdown 代码块或解释文字。即使模型承诺 JSON，服务端仍必须执行解析和 Zod 校验。

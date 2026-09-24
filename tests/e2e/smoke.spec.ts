@@ -12,6 +12,20 @@ test('健康检查正常', async ({ request }) => {
   await expect(response.json()).resolves.toMatchObject({ data: { status: 'ok' }, error: null });
 });
 
+test('拆分后的统计接口正常', async ({ request }) => {
+  const [summaryResponse, trendsResponse] = await Promise.all([
+    request.get('/api/statistics/summary'),
+    request.get('/api/statistics/trends?metric=distance&bucket=day'),
+  ]);
+  expect(summaryResponse.ok()).toBeTruthy();
+  expect(trendsResponse.ok()).toBeTruthy();
+  await expect(summaryResponse.json()).resolves.toMatchObject({
+    data: { count: expect.any(Number), totalDistanceMeters: expect.any(Number) },
+    error: null,
+  });
+  await expect(trendsResponse.json()).resolves.toMatchObject({ data: expect.any(Array), error: null });
+});
+
 test('未配置 AI 时明确提示手工填写并使用分段时长输入', async ({ page }) => {
   await page.goto('/');
   await page.locator('input[type="file"]').setInputFiles('tests/fixtures/screenshots/outdoor-walking-2026-09-22.jpg');

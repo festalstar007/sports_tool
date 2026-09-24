@@ -69,7 +69,7 @@ sports_demo/
 │   │   │   ├── activity-service.ts
 │   │   │   ├── import-service.ts
 │   │   │   ├── recognition-service.ts
-│   │   │   └── storage-service.ts
+│   │   │   └── screenshot-storage.ts
 │   │   ├── middleware/
 │   │   └── index.ts
 │   └── shared/
@@ -89,6 +89,22 @@ sports_demo/
 ```
 
 客户端与 Worker 共享纯类型、Zod Schema 和单位转换函数。共享模块不得依赖浏览器专属或 Worker 专属 API。
+
+### 3.1 当前 Worker 后端目录
+
+Worker 后端按业务域组织：
+
+- `worker/index.ts`：创建 Hono 应用，挂载日志、request ID、Access 校验、健康检查和全局错误处理。
+- `worker/app-types.ts`：统一 Cloudflare bindings、Hono variables 和 Context 类型。
+- `worker/routes/imports.ts`：截图上传、导入查询、私有图片读取和重新识别。
+- `worker/routes/activities.ts`：运动记录创建、列表、详情、修改和删除。
+- `worker/routes/statistics.ts`：汇总数据与趋势时间桶查询。
+- `worker/services/recognition-service.ts`：Workers AI 调用及识别结果规范化。
+- `worker/services/screenshot-storage.ts`：生成 R2 截图对象键；按 UTC 年月分组，并生成 UTC 时间戳文件名。
+- `worker/db.ts`：D1 行类型及数据库字段到 API 字段的映射。
+- `worker/http.ts`：统一成功、失败响应及 Zod 错误转换。
+
+路由模块只负责 HTTP 参数与响应编排。业务继续增长时，再把跨多个路由复用的逻辑提取到 `services`，不要提前为每个简单 SQL 增加一层空包装。
 
 ## 4. Cloudflare 绑定
 
@@ -145,6 +161,7 @@ DEV_AUTH_BYPASS=false
 - 校验类型和大小。
 - 创建 `activity_imports` 记录。
 - 将原图写入 R2。
+- 新截图对象键格式为 `YYYYMM/<UTC Unix 秒>_<8 位随机数字>.<扩展名>`，例如 `202609/1790238567_12345678.jpg`。
 - 调用识别服务并保存原始、规范化结果。
 - 返回导入记录和待确认字段。
 - 个人低频场景下第一版同步等待识别；识别失败也返回可手工编辑的导入记录。
