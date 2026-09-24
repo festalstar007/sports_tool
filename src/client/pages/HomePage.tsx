@@ -50,7 +50,6 @@ export function HomePage() {
       </section>
 
       <section className="upload-card">
-        <div className="upload-icon" aria-hidden="true">↥</div>
         <h2>上传运动截图</h2>
         <p>支持户外跑步和户外步行详情页，识别后可逐项确认。</p>
         {preview && <img className="upload-preview" src={preview} alt="待识别截图预览" />}

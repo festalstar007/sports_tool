@@ -3,7 +3,10 @@ import { expect, test } from '@playwright/test';
 test('移动端首页可以打开', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('sports_tool', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '从相册选择截图' })).toBeVisible();
+  const uploadButton = page.getByRole('button', { name: '从相册选择截图' });
+  await expect(uploadButton).toBeVisible();
+  await expect(uploadButton).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('.upload-icon')).toHaveCount(0);
 });
 
 test('健康检查正常', async ({ request }) => {
