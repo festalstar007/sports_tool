@@ -44,7 +44,7 @@ export function HomePage() {
       </section>
 
       <section className="metric-grid">
-        <MetricCard label="运动次数" value={`${summary.data?.count ?? 0} 次`} />
+        <MetricCard label="本周运动次数" value={`${summary.data?.count ?? 0} 次`} />
         <MetricCard label="总热量" value={`${summary.data?.totalCaloriesKcal ?? 0} kcal`} tone="orange" />
         <MetricCard label="总步数" value={`${(summary.data?.totalSteps ?? 0).toLocaleString('zh-CN')} 步`} tone="blue" />
       </section>
