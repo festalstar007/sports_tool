@@ -39,7 +39,12 @@ export function formatDuration(totalSeconds: number | null | undefined): string 
 }
 
 export function parsePace(value: string): number | null {
-  const normalized = value.trim().replace(/[′']/g, ':').replace(/[″"]/g, '');
+  const normalized = value
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/(?:\/公里|每公里)$/i, '')
+    .replace(/[′']/g, ':')
+    .replace(/[″"]/g, '');
   const match = normalized.match(/^(\d{1,3}):(\d{1,2})$/);
   if (!match) return null;
   const minutes = Number(match[1]);

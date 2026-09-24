@@ -87,14 +87,27 @@ pnpm db:migrate:remote
 
 ## 5. 启用 Workers AI
 
-当前代码已经预留 `AI` binding 和 `AI_MODEL`。正式选择视觉模型时需要确认该模型仍在 Cloudflare 当前免费计划/免费额度内，并根据模型输入格式调整 `src/worker/services/recognition-service.ts` 中唯一的模型适配点。
+当前生产配置使用 `AI` binding 和视觉模型 `@cf/meta/llama-3.2-11b-vision-instruct`。模型适配集中在 `src/worker/services/recognition-service.ts`，图片以带 MIME 类型的 Base64 data URL 发送，模型输出仍须通过 Zod 校验后才能进入确认页。
 
-确认模型后：
+首次使用该模型前，账户所有者必须接受 Meta Llama 3.2 License 和 AUP。使用具有 `Workers AI Write` 权限的临时 API Token 执行以下命令，令牌不要写入仓库或聊天记录：
 
-1. 在 `wrangler.jsonc` 中取消 `"ai": { "binding": "AI" }` 的注释。
-2. 通过 Cloudflare 环境变量设置 `AI_MODEL`，不要硬编码账户相关信息。
-3. 使用两张固定截图校验 `03-data-and-recognition.md` 中的全部期望字段。
-4. 特别确认没有把手机状态栏时间识别为运动开始时间。
+```bash
+export CLOUDFLARE_ACCOUNT_ID="你的账户 ID"
+export CLOUDFLARE_AUTH_TOKEN="临时 API Token"
+curl "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.2-11b-vision-instruct" \
+  -X POST \
+  -H "Authorization: Bearer ${CLOUDFLARE_AUTH_TOKEN}" \
+  -H "Content-Type: application/json" \
+  --data '{"prompt":"agree"}'
+unset CLOUDFLARE_AUTH_TOKEN
+```
+
+确认响应中的 `success` 为 `true` 后：
+
+1. 部署包含 `AI` binding 和 `AI_MODEL` 的版本。
+2. 使用两张固定截图校验 `03-data-and-recognition.md` 中的全部期望字段。
+3. 特别确认没有把手机状态栏时间识别为运动开始时间。
+4. AI 结果仅用于预填，保存前始终由用户人工确认。
 
 ## 6. 配置 Access 和域名
 
@@ -107,6 +120,8 @@ pnpm db:migrate:remote
 - R2 bucket 没有公共访问入口。
 - HTTPS 和 PWA manifest 正常。
 
+工程通过 `wrangler.jsonc` 的 Custom Domain route 管理该域名，并显式关闭 `workers.dev` 和预览 URL，避免绕过 Access 访问 Worker。
+
 ## 7. 构建与部署
 
 ```bash
@@ -114,7 +129,7 @@ pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build
-pnpm deploy
+pnpm run deploy
 ```
 
 部署完成后，用手机执行一次完整流程：登录、上传跑步截图、校对、保存、查看历史和曲线，再对步行截图重复一次。

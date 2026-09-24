@@ -16,6 +16,7 @@ describe('运动单位转换', () => {
 
   it('解析并格式化平均配速', () => {
     expect(parsePace("9'21\"")).toBe(561);
+    expect(parsePace("9'21\"/公里")).toBe(561);
     expect(parsePace('10:23')).toBe(623);
     expect(formatPace(623)).toBe('10′23″');
     expect(parsePace('10:75')).toBeNull();

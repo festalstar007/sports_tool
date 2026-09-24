@@ -66,7 +66,7 @@ app.post('/api/imports', async (c) => {
       .bind(id, imageKey, image.type, image.size, now, now)
       .run();
 
-    const outcome = await recognizeScreenshot(c.env, bytes);
+    const outcome = await recognizeScreenshot(c.env, bytes, image.type);
     const status = outcome.errorCode && outcome.errorCode !== 'AI_NOT_CONFIGURED' ? 'failed' : 'needs_review';
     const updatedAt = new Date().toISOString();
     await c.env.DB.prepare(
@@ -133,7 +133,7 @@ app.post('/api/imports/:id/retry', async (c) => {
   await c.env.DB.prepare("UPDATE activity_imports SET status = 'recognizing', updated_at = ? WHERE id = ?")
     .bind(new Date().toISOString(), id)
     .run();
-  const outcome = await recognizeScreenshot(c.env, await object.arrayBuffer());
+  const outcome = await recognizeScreenshot(c.env, await object.arrayBuffer(), row.image_content_type);
   const status = outcome.errorCode && outcome.errorCode !== 'AI_NOT_CONFIGURED' ? 'failed' : 'needs_review';
   await c.env.DB.prepare(
     `UPDATE activity_imports SET status = ?, raw_ai_response = ?, normalized_extraction_json = ?,
