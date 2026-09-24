@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatPace, normalizeDurationInput, parseDuration, parsePace } from '../../src/shared/units';
+import {
+  deriveMovementMetrics,
+  formatDuration,
+  formatPace,
+  normalizeDurationInput,
+  parseDuration,
+  parsePace,
+} from '../../src/shared/units';
 
 describe('运动单位转换', () => {
   it('解析并格式化运动时长', () => {
@@ -20,5 +27,20 @@ describe('运动单位转换', () => {
     expect(parsePace('10:23')).toBe(623);
     expect(formatPace(623)).toBe('10′23″');
     expect(parsePace('10:75')).toBeNull();
+  });
+
+  it('根据基础数据计算派生指标', () => {
+    expect(deriveMovementMetrics(2210, 1240, 3061)).toEqual({
+      avgPaceSecondsPerKm: 561,
+      avgSpeedKmh: 6.42,
+      avgCadenceSpm: 148,
+      avgStrideCm: 72,
+    });
+    expect(deriveMovementMetrics(3030, 1889, null)).toEqual({
+      avgPaceSecondsPerKm: 623,
+      avgSpeedKmh: 5.77,
+      avgCadenceSpm: null,
+      avgStrideCm: null,
+    });
   });
 });

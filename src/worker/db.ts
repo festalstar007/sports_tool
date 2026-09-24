@@ -17,7 +17,8 @@ export type ImportRow = {
 
 export type ActivityRow = {
   id: string;
-  import_id: string;
+  import_id: string | null;
+  source_type: Activity['sourceType'];
   sport_type: Activity['sportType'];
   started_at: string;
   timezone: string;
@@ -65,6 +66,7 @@ export function mapActivity(row: ActivityRow): Activity {
   return {
     id: row.id,
     importId: row.import_id,
+    sourceType: row.source_type,
     sportType: row.sport_type,
     startedAt: row.started_at,
     timezone: row.timezone,

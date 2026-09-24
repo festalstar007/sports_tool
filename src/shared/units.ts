@@ -92,3 +92,22 @@ export function nullableNumber(value: string): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
+
+export function deriveMovementMetrics(distanceMeters: number, durationSeconds: number, steps: number | null = null) {
+  if (!Number.isFinite(distanceMeters) || distanceMeters <= 0 || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    return {
+      avgPaceSecondsPerKm: null,
+      avgSpeedKmh: null,
+      avgCadenceSpm: null,
+      avgStrideCm: null,
+    };
+  }
+  const distanceKm = distanceMeters / 1000;
+  const hasSteps = steps != null && Number.isFinite(steps) && steps > 0;
+  return {
+    avgPaceSecondsPerKm: Math.round(durationSeconds / distanceKm),
+    avgSpeedKmh: Math.round((distanceKm / (durationSeconds / 3600)) * 100) / 100,
+    avgCadenceSpm: hasSteps ? Math.floor(steps / (durationSeconds / 60)) : null,
+    avgStrideCm: hasSteps ? Math.round((distanceMeters * 100) / steps) : null,
+  };
+}

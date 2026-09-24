@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 const titles: Record<string, string> = {
   '/': '今日运动',
   '/activities': '运动记录',
+  '/activities/new': '手动录入',
   '/trends': '趋势分析',
 };
 

@@ -19,11 +19,11 @@ export type ActivityFormValues = {
 
 const stringValue = (value: number | null | undefined) => (value == null ? '' : String(value));
 
-export function emptyActivityForm(): ActivityFormValues {
+export function emptyActivityForm(sportType: SportType | '' = ''): ActivityFormValues {
   const now = new Date();
   const shanghai = new Date(now.getTime() + 8 * 3600_000).toISOString().slice(0, 16);
   return {
-    sportType: '',
+    sportType,
     startedAtLocal: shanghai,
     distanceKm: '',
     duration: '',

@@ -1,6 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { logger } from 'hono/logger';
 import { confirmedActivitySchema, updateActivitySchema } from '../shared/activity-schema';
+import { deriveMovementMetrics } from '../shared/units';
 import { validateActivityConsistency } from '../shared/validation';
 import { mapActivity, mapImport, type ActivityRow, type ImportRow } from './db';
 import type { Env } from './env';
@@ -153,7 +154,7 @@ app.post('/api/imports/:id/retry', async (c) => {
   return ok(c, mapImport(updated!));
 });
 
-const activityColumns = `id, import_id, sport_type, started_at, timezone, distance_meters,
+const activityColumns = `id, import_id, source_type, sport_type, started_at, timezone, distance_meters,
   duration_seconds, calories_kcal, avg_pace_seconds_per_km, avg_speed_kmh,
   avg_cadence_spm, avg_stride_cm, steps, avg_heart_rate_bpm,
   elevation_gain_meters, elevation_loss_meters, validation_warnings_json,
@@ -168,29 +169,36 @@ app.post('/api/activities', async (c) => {
       fields: zodFields(parsed.error),
     });
   }
-  const input = parsed.data;
-  const existing = await c.env.DB.prepare(`SELECT ${activityColumns} FROM activities WHERE import_id = ?`)
-    .bind(input.importId)
-    .first<ActivityRow>();
-  if (existing) return ok(c, mapActivity(existing));
+  const parsedInput = parsed.data;
+  if (parsedInput.importId) {
+    const existing = await c.env.DB.prepare(`SELECT ${activityColumns} FROM activities WHERE import_id = ?`)
+      .bind(parsedInput.importId)
+      .first<ActivityRow>();
+    if (existing) return ok(c, mapActivity(existing));
 
-  const importRow = await c.env.DB.prepare('SELECT id FROM activity_imports WHERE id = ?')
-    .bind(input.importId)
-    .first<{ id: string }>();
-  if (!importRow) return fail(c, 404, { code: 'IMPORT_NOT_FOUND', message: '对应的截图导入不存在' });
+    const importRow = await c.env.DB.prepare('SELECT id FROM activity_imports WHERE id = ?')
+      .bind(parsedInput.importId)
+      .first<{ id: string }>();
+    if (!importRow) return fail(c, 404, { code: 'IMPORT_NOT_FOUND', message: '对应的截图导入不存在' });
+  }
+
+  const input = parsedInput.importId
+    ? parsedInput
+    : { ...parsedInput, ...deriveMovementMetrics(parsedInput.distanceMeters, parsedInput.durationSeconds, parsedInput.steps) };
 
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const warnings = validateActivityConsistency(input);
   try {
-    await c.env.DB.batch([
+    const statements = [
       c.env.DB.prepare(
         `INSERT INTO activities (${activityColumns}) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )`,
       ).bind(
         id,
         input.importId,
+        input.importId ? 'screenshot' : 'manual',
         input.sportType,
         input.startedAt,
         input.timezone,
@@ -209,11 +217,16 @@ app.post('/api/activities', async (c) => {
         now,
         now,
       ),
-      c.env.DB.prepare("UPDATE activity_imports SET status = 'confirmed', updated_at = ? WHERE id = ?").bind(
-        now,
-        input.importId,
-      ),
-    ]);
+    ];
+    if (input.importId) {
+      statements.push(
+        c.env.DB.prepare("UPDATE activity_imports SET status = 'confirmed', updated_at = ? WHERE id = ?").bind(
+          now,
+          input.importId,
+        ),
+      );
+    }
+    await c.env.DB.batch(statements);
     const row = await c.env.DB.prepare(`SELECT ${activityColumns} FROM activities WHERE id = ?`)
       .bind(id)
       .first<ActivityRow>();
@@ -269,9 +282,15 @@ app.patch('/api/activities/:id', async (c) => {
       fields: zodFields(parsed.error),
     });
   }
-  const input = parsed.data;
+  const existing = await c.env.DB.prepare('SELECT source_type FROM activities WHERE id = ?')
+    .bind(c.req.param('id'))
+    .first<{ source_type: ActivityRow['source_type'] }>();
+  if (!existing) return fail(c, 404, { code: 'ACTIVITY_NOT_FOUND', message: '找不到运动记录' });
+  const input = existing.source_type === 'manual'
+    ? { ...parsed.data, ...deriveMovementMetrics(parsed.data.distanceMeters, parsed.data.durationSeconds, parsed.data.steps) }
+    : parsed.data;
   const warnings = validateActivityConsistency(input);
-  const result = await c.env.DB.prepare(
+  await c.env.DB.prepare(
     `UPDATE activities SET sport_type = ?, started_at = ?, timezone = ?, distance_meters = ?,
       duration_seconds = ?, calories_kcal = ?, avg_pace_seconds_per_km = ?, avg_speed_kmh = ?,
       avg_cadence_spm = ?, avg_stride_cm = ?, steps = ?, avg_heart_rate_bpm = ?,
@@ -298,7 +317,6 @@ app.patch('/api/activities/:id', async (c) => {
       c.req.param('id'),
     )
     .run();
-  if (!result.meta.changes) return fail(c, 404, { code: 'ACTIVITY_NOT_FOUND', message: '找不到运动记录' });
   const row = await c.env.DB.prepare(`SELECT ${activityColumns} FROM activities WHERE id = ?`)
     .bind(c.req.param('id'))
     .first<ActivityRow>();
@@ -306,19 +324,23 @@ app.patch('/api/activities/:id', async (c) => {
 });
 
 app.delete('/api/activities/:id', async (c) => {
-  const row = await c.env.DB.prepare(
-    `SELECT a.import_id, i.image_key FROM activities a
-     JOIN activity_imports i ON i.id = a.import_id WHERE a.id = ?`,
-  )
+  const row = await c.env.DB.prepare('SELECT import_id FROM activities WHERE id = ?')
     .bind(c.req.param('id'))
-    .first<{ import_id: string; image_key: string }>();
+    .first<{ import_id: string | null }>();
   if (!row) return fail(c, 404, { code: 'ACTIVITY_NOT_FOUND', message: '找不到运动记录' });
   try {
-    await c.env.SCREENSHOTS.delete(row.image_key);
-    await c.env.DB.batch([
-      c.env.DB.prepare('DELETE FROM activities WHERE id = ?').bind(c.req.param('id')),
-      c.env.DB.prepare('DELETE FROM activity_imports WHERE id = ?').bind(row.import_id),
-    ]);
+    if (row.import_id) {
+      const importRow = await c.env.DB.prepare('SELECT image_key FROM activity_imports WHERE id = ?')
+        .bind(row.import_id)
+        .first<{ image_key: string }>();
+      if (importRow) await c.env.SCREENSHOTS.delete(importRow.image_key);
+      await c.env.DB.batch([
+        c.env.DB.prepare('DELETE FROM activities WHERE id = ?').bind(c.req.param('id')),
+        c.env.DB.prepare('DELETE FROM activity_imports WHERE id = ?').bind(row.import_id),
+      ]);
+    } else {
+      await c.env.DB.prepare('DELETE FROM activities WHERE id = ?').bind(c.req.param('id')).run();
+    }
     return ok(c, { deleted: true });
   } catch (error) {
     console.error(JSON.stringify({ requestId: c.get('requestId'), activityId: c.req.param('id'), error: String(error) }));

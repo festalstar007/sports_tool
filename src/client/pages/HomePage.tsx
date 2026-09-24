@@ -64,6 +64,9 @@ export function HomePage() {
         <button className="primary-button" type="button" disabled={upload.isPending} onClick={() => inputRef.current?.click()}>
           {upload.isPending ? '上传并准备识别…' : '从相册选择截图'}
         </button>
+        <button className="manual-entry-button" type="button" disabled={upload.isPending} onClick={() => navigate('/activities/new')}>
+          没有截图？手动录入
+        </button>
         {upload.error && <p className="form-error" role="alert">{upload.error.message}</p>}
       </section>
 

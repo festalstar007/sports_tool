@@ -13,6 +13,7 @@
 | 字段 | 类型 | 单位/格式 | 必填 |
 | --- | --- | --- | --- |
 | `sport_type` | TEXT | `running` / `walking` | 是 |
+| `source_type` | TEXT | `screenshot` / `manual` | 是 |
 | `started_at` | TEXT | 带时区 ISO 8601 | 是 |
 | `timezone` | TEXT | 默认 `Asia/Shanghai` | 是 |
 | `distance_meters` | INTEGER | 米 | 是 |
@@ -51,7 +52,10 @@ CREATE TABLE activity_imports (
 
 CREATE TABLE activities (
   id TEXT PRIMARY KEY,
-  import_id TEXT NOT NULL UNIQUE,
+  import_id TEXT UNIQUE,
+  source_type TEXT NOT NULL DEFAULT 'screenshot' CHECK (
+    source_type IN ('screenshot', 'manual')
+  ),
   sport_type TEXT NOT NULL CHECK (sport_type IN ('running', 'walking')),
   started_at TEXT NOT NULL,
   timezone TEXT NOT NULL DEFAULT 'Asia/Shanghai',
@@ -87,7 +91,7 @@ CREATE INDEX idx_activities_sport_started_at
 ON activities(sport_type, started_at DESC);
 ```
 
-删除策略由服务层明确执行：先确定活动、导入和 R2 对象，再在可恢复的顺序中删除。SQLite 外键行为不得被隐式假设。
+`source_type = 'manual'` 时 `import_id` 为 `NULL`；截图记录仍使用唯一的导入 ID。删除策略由服务层明确执行：手动记录只删除活动行，截图记录同时删除活动、导入和 R2 对象。SQLite 外键行为不得被隐式假设。
 
 ## 4. AI 输出协议
 
@@ -255,4 +259,13 @@ estimated_distance_meters = steps * avg_stride_cm / 100
 
 ## 8. 派生值策略
 
-截图中的配速和速度需要保留，因为它们是来源应用报告值。应用可同时计算派生配速和速度进行校验，但不得静默覆盖截图识别值。用户修改距离或时长后，确认页应提示是否同步重新计算配速和速度，由用户决定。
+距离和时长是核心基础数据。程序按以下规则计算平均配速和平均速度；提供步数时，同时计算平均步频和平均步幅：
+
+```text
+avg_pace_seconds_per_km = duration_seconds / distance_km
+avg_speed_kmh = distance_km / duration_hours
+avg_cadence_spm = floor(steps / duration_minutes)
+avg_stride_cm = round(distance_meters * 100 / steps)
+```
+
+手动录入始终使用程序派生值。截图识别也优先使用基础数据派生这四项，避免视觉模型在相邻标签、单位换算或小数点上产生错误；用户仍需在确认页核对结果。

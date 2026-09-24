@@ -2,12 +2,14 @@ import { z } from 'zod';
 
 export const sportTypeSchema = z.enum(['running', 'walking']);
 export type SportType = z.infer<typeof sportTypeSchema>;
+export const activitySourceSchema = z.enum(['screenshot', 'manual']);
+export type ActivitySource = z.infer<typeof activitySourceSchema>;
 
 const nullableNonNegative = z.number().finite().nonnegative().nullable();
 const nullablePositive = z.number().finite().positive().nullable();
 
 export const confirmedActivitySchema = z.object({
-  importId: z.string().min(1),
+  importId: z.string().min(1).nullable().default(null),
   sportType: sportTypeSchema,
   startedAt: z.string().refine((value) => !Number.isNaN(Date.parse(value)), '运动时间无效'),
   timezone: z.string().min(1).default('Asia/Shanghai'),
@@ -61,7 +63,8 @@ export type ValidationWarning = {
 
 export type Activity = {
   id: string;
-  importId: string;
+  importId: string | null;
+  sourceType: ActivitySource;
   sportType: SportType;
   startedAt: string;
   timezone: string;

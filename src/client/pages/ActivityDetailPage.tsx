@@ -42,6 +42,7 @@ export function ActivityDetailPage() {
           key={activity.updatedAt}
           initialValues={activityToForm(activity)}
           importId={activity.importId}
+          mode="edit"
           submitLabel="保存修改"
           busy={update.isPending}
           onSubmit={async (data) => { await update.mutateAsync(updateActivitySchema.parse(data)); }}
@@ -80,17 +81,19 @@ export function ActivityDetailPage() {
           {activity.validationWarnings.map((warning) => <p key={warning.message}>{warning.message}</p>)}
         </aside>
       )}
-      <section className="original-image-card">
-        <h2>原始截图</h2>
-        <img src={`/api/imports/${activity.importId}/image`} alt="该运动记录的原始截图" />
-      </section>
+      {activity.importId && (
+        <section className="original-image-card">
+          <h2>原始截图</h2>
+          <img src={`/api/imports/${activity.importId}/image`} alt="该运动记录的原始截图" />
+        </section>
+      )}
       <div className="button-row">
         <button className="secondary-button" type="button" onClick={() => setEditing(true)}>编辑记录</button>
         <button
           className="danger-button"
           type="button"
           disabled={remove.isPending}
-          onClick={() => window.confirm('确定删除这条运动记录和原始截图吗？') && remove.mutate()}
+          onClick={() => window.confirm(activity.importId ? '确定删除这条运动记录和原始截图吗？' : '确定删除这条运动记录吗？') && remove.mutate()}
         >
           {remove.isPending ? '删除中…' : '删除'}
         </button>
