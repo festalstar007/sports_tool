@@ -37,12 +37,12 @@ Cloudflare Access 位于整个应用之前
 - D1：关系数据。
 - R2：私有图片对象。
 - Workers AI：视觉识别。
-- Vitest：单元与集成测试。
+- Vitest：单元测试。
 - Playwright：手机视口端到端测试。
 
 具体依赖版本由初始化时的稳定版本决定，但不得随意加入功能重复的大型依赖。
 
-## 3. 推荐目录
+## 3. 当前目录结构
 
 ```text
 sports_demo/
@@ -55,31 +55,32 @@ sports_demo/
 │   └── icons/
 ├── src/
 │   ├── client/
-│   │   ├── app/
 │   │   ├── components/
-│   │   ├── features/
-│   │   │   ├── activities/
-│   │   │   ├── imports/
-│   │   │   └── trends/
 │   │   ├── pages/
+│   │   ├── App.tsx
+│   │   ├── api.ts
+│   │   ├── form.ts
 │   │   └── main.tsx
 │   ├── worker/
 │   │   ├── routes/
+│   │   │   ├── activities.ts
+│   │   │   ├── imports.ts
+│   │   │   └── statistics.ts
 │   │   ├── services/
-│   │   │   ├── activity-service.ts
-│   │   │   ├── import-service.ts
 │   │   │   ├── recognition-service.ts
 │   │   │   └── screenshot-storage.ts
-│   │   ├── middleware/
+│   │   ├── app-types.ts
+│   │   ├── db.ts
+│   │   ├── env.ts
+│   │   ├── http.ts
 │   │   └── index.ts
 │   └── shared/
 │       ├── activity-schema.ts
-│       ├── recognition-schema.ts
+│       ├── api.ts
 │       ├── units.ts
 │       └── validation.ts
 ├── tests/
 │   ├── unit/
-│   ├── integration/
 │   └── e2e/
 ├── package.json
 ├── pnpm-lock.yaml
