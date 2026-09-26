@@ -15,7 +15,8 @@ Cloudflare Worker
   ├─ 静态资源：React + Vite
   ├─ API：Hono
   ├─ D1：导入记录、正式运动记录
-  ├─ R2：原始截图
+  ├─ Images：上传截图转换为 WebP
+  ├─ R2：转换后的私有截图
   └─ Workers AI：截图识别
 
 Cloudflare Access 位于整个应用之前
@@ -101,7 +102,7 @@ Worker 后端按业务域组织：
 - `worker/routes/activities.ts`：运动记录创建、列表、详情、修改和删除。
 - `worker/routes/statistics.ts`：汇总数据与趋势时间桶查询。
 - `worker/services/recognition-service.ts`：Workers AI 调用及识别结果规范化。
-- `worker/services/screenshot-storage.ts`：生成 R2 截图对象键；按 UTC 年月分组，并生成 UTC 时间戳文件名。
+- `worker/services/screenshot-storage.ts`：通过 Images binding 将上传图片编码为 WebP，并按 UTC 年月和时间戳生成 R2 对象键。
 - `worker/db.ts`：D1 行类型及数据库字段到 API 字段的映射。
 - `worker/http.ts`：统一成功、失败响应及 Zod 错误转换。
 
@@ -113,6 +114,7 @@ Wrangler 配置需要包含：
 
 - `DB`：D1 database binding。
 - `SCREENSHOTS`：R2 bucket binding。
+- `IMAGES`：Cloudflare Images binding，用于上传时转换 WebP。
 - `AI`：Workers AI binding。
 - `ASSETS`：由 Cloudflare/Vite 静态资源配置生成或提供。
 
@@ -161,8 +163,9 @@ DEV_AUTH_BYPASS=false
 - `multipart/form-data`，字段名 `image`。
 - 校验类型和大小。
 - 创建 `activity_imports` 记录。
-- 将原图写入 R2。
-- 新截图对象键格式为 `YYYYMM/<UTC Unix 秒>_<8 位随机数字>.<扩展名>`，例如 `202609/1790238567_12345678.jpg`。
+- 使用 Images binding 将图片转为 WebP，不缩小像素尺寸；转换失败时不创建导入记录。
+- 将转换后的 WebP 写入 R2，并将同一份图片交给识别服务。D1 记录 WebP 的字节数和 `image/webp` 类型。
+- 截图对象键格式为 `YYYYMM/<UTC Unix 秒>_<8 位随机数字>.webp`，例如 `202609/1790238567_12345678.webp`。
 - 调用识别服务并保存原始、规范化结果。
 - 返回导入记录和待确认字段。
 - 个人低频场景下第一版同步等待识别；识别失败也返回可手工编辑的导入记录。

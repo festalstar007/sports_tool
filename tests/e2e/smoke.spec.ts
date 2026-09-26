@@ -29,6 +29,35 @@ test('拆分后的统计接口正常', async ({ request }) => {
   await expect(trendsResponse.json()).resolves.toMatchObject({ data: expect.any(Array), error: null });
 });
 
+for (const { fixture, originalBytes } of [
+  { fixture: 'outdoor-running-2026-09-20.jpg', originalBytes: 473727 },
+  { fixture: 'outdoor-walking-2026-09-22.jpg', originalBytes: 481205 },
+]) {
+  test(`${fixture} 转换并存储为 WebP`, async ({ page, request }) => {
+    await page.goto('/');
+    await page.locator('input[type="file"]').setInputFiles(`tests/fixtures/screenshots/${fixture}`);
+    await expect(page).toHaveURL(/\/imports\/[^/]+\/review$/);
+    const importId = page.url().match(/\/imports\/([^/]+)\/review$/)?.[1];
+    expect(importId).toBeTruthy();
+    const importResponse = await request.get(`/api/imports/${importId}`);
+    expect(importResponse.ok()).toBeTruthy();
+    const { data: imported } = await importResponse.json();
+    expect(imported.imageContentType).toBe('image/webp');
+    expect(imported.imageSizeBytes).toBeLessThan(originalBytes);
+
+    const imageResponse = await request.get(`/api/imports/${imported.id}/image`);
+    expect(imageResponse.ok()).toBeTruthy();
+    expect(imageResponse.headers()['content-type']).toContain('image/webp');
+    const converted = await imageResponse.body();
+    expect(converted.byteLength).toBe(imported.imageSizeBytes);
+    expect(converted.toString('ascii', 0, 4)).toBe('RIFF');
+    expect(converted.toString('ascii', 8, 12)).toBe('WEBP');
+    const screenshot = page.locator('.screenshot-card img');
+    await expect(screenshot).toHaveJSProperty('naturalWidth', 1264);
+    await expect(screenshot).toHaveJSProperty('naturalHeight', 2736);
+  });
+}
+
 test('未配置 AI 时明确提示手工填写并使用分段时长输入', async ({ page }) => {
   await page.goto('/');
   await page.locator('input[type="file"]').setInputFiles('tests/fixtures/screenshots/outdoor-walking-2026-09-22.jpg');

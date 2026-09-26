@@ -2,7 +2,7 @@ import type { App } from '../app-types';
 import { mapImport, type ImportRow } from '../db';
 import { fail, ok } from '../http';
 import { recognizeScreenshot } from '../services/recognition-service';
-import { createScreenshotObjectKey } from '../services/screenshot-storage';
+import { convertScreenshotToWebp, createScreenshotObjectKey, SCREENSHOT_CONTENT_TYPE } from '../services/screenshot-storage';
 
 export function registerImportRoutes(app: App) {
   app.post('/api/imports', async (c) => {
@@ -21,15 +21,22 @@ export function registerImportRoutes(app: App) {
       return fail(c, 413, { code: 'IMAGE_TOO_LARGE', message: '图片超过 10 MiB 限制' });
     }
 
+    let bytes: ArrayBuffer;
+    try {
+      bytes = await convertScreenshotToWebp(c.env.IMAGES, image);
+    } catch (error) {
+      console.error(JSON.stringify({ requestId: c.get('requestId'), error: String(error) }));
+      return fail(c, 415, { code: 'IMAGE_CONVERSION_FAILED', message: '截图无法转换为 WebP，请检查图片后重试' });
+    }
+
     const id = crypto.randomUUID();
     const uploadedAt = new Date();
-    const imageKey = createScreenshotObjectKey(image.type, uploadedAt);
+    const imageKey = createScreenshotObjectKey(uploadedAt);
     const now = uploadedAt.toISOString();
-    const bytes = await image.arrayBuffer();
 
     try {
       await c.env.SCREENSHOTS.put(imageKey, bytes, {
-        httpMetadata: { contentType: image.type },
+        httpMetadata: { contentType: SCREENSHOT_CONTENT_TYPE },
         customMetadata: { importId: id },
       });
       await c.env.DB.prepare(
@@ -37,10 +44,10 @@ export function registerImportRoutes(app: App) {
           id, image_key, image_content_type, image_size_bytes, status, created_at, updated_at
         ) VALUES (?, ?, ?, ?, 'recognizing', ?, ?)`,
       )
-        .bind(id, imageKey, image.type, image.size, now, now)
+        .bind(id, imageKey, SCREENSHOT_CONTENT_TYPE, bytes.byteLength, now, now)
         .run();
 
-      const outcome = await recognizeScreenshot(c.env, bytes, image.type);
+      const outcome = await recognizeScreenshot(c.env, bytes, SCREENSHOT_CONTENT_TYPE);
       const status = outcome.errorCode && outcome.errorCode !== 'AI_NOT_CONFIGURED' ? 'failed' : 'needs_review';
       const updatedAt = new Date().toISOString();
       await c.env.DB.prepare(
@@ -83,7 +90,7 @@ export function registerImportRoutes(app: App) {
       .first<{ image_key: string; image_content_type: string }>();
     if (!row) return fail(c, 404, { code: 'IMPORT_NOT_FOUND', message: '找不到这次导入' });
     const object = await c.env.SCREENSHOTS.get(row.image_key);
-    if (!object) return fail(c, 404, { code: 'IMAGE_NOT_FOUND', message: '原始截图不存在' });
+    if (!object) return fail(c, 404, { code: 'IMAGE_NOT_FOUND', message: '截图不存在' });
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set('content-type', row.image_content_type);
@@ -103,7 +110,7 @@ export function registerImportRoutes(app: App) {
       .first<ImportRow>();
     if (!row) return fail(c, 409, { code: 'IMPORT_NOT_RETRYABLE', message: '导入不存在或已经确认保存' });
     const object = await c.env.SCREENSHOTS.get(row.image_key);
-    if (!object) return fail(c, 404, { code: 'IMAGE_NOT_FOUND', message: '原始截图不存在' });
+    if (!object) return fail(c, 404, { code: 'IMAGE_NOT_FOUND', message: '截图不存在' });
     await c.env.DB.prepare("UPDATE activity_imports SET status = 'recognizing', updated_at = ? WHERE id = ?")
       .bind(new Date().toISOString(), id)
       .run();

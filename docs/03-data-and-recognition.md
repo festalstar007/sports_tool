@@ -95,13 +95,15 @@ ON activities(sport_type, started_at DESC);
 
 ### 3.1 R2 截图对象键
 
-新上传截图使用以下对象键：
+上传的 JPEG、PNG、WebP 由 Worker 使用 Images binding 转为 WebP；同一份转换后的图片用于首次识别、重新识别和私有存储。`image_content_type` 固定为 `image/webp`，`image_size_bytes` 是转换后的大小。转换时保持原图像素尺寸，不覆盖测试夹具。
+
+截图使用以下对象键：
 
 ```text
-YYYYMM/<UTC Unix 秒>_<8 位随机数字>.<扩展名>
+YYYYMM/<UTC Unix 秒>_<8 位随机数字>.webp
 ```
 
-例如：`202609/1790238567_12345678.jpg`。`YYYYMM` 与 Unix 时间戳均按 UTC 计算；随机部分固定为 8 位十进制数字并保留前导零。扩展名根据上传内容类型取 `jpg`、`png` 或 `webp`。
+例如：`202609/1790238567_12345678.webp`。`YYYYMM` 与 Unix 时间戳均按 UTC 计算；随机部分固定为 8 位十进制数字并保留前导零。
 
 R2 的“文件夹”是对象键前缀，不是实际目录。D1 的 `activity_imports.image_key` 保存完整对象键。
 

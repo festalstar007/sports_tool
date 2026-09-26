@@ -32,14 +32,14 @@ function createEnv(run: AiBinding['run']): Env {
 describe('recognizeScreenshot', () => {
   it('sends a base64 data URL and normalizes copied screenshot text in code', async () => {
     const run = vi.fn().mockResolvedValue({ response: validRawResponse });
-    const bytes = Uint8Array.from([0xff, 0xd8, 0xff]).buffer;
+    const bytes = Uint8Array.from([0x52, 0x49, 0x46, 0x46]).buffer;
 
-    const result = await recognizeScreenshot(createEnv(run), bytes, 'image/jpeg');
+    const result = await recognizeScreenshot(createEnv(run), bytes, 'image/webp');
 
     expect(run).toHaveBeenCalledWith(
       '@cf/meta/llama-3.2-11b-vision-instruct',
       expect.objectContaining({
-        image: 'data:image/jpeg;base64,/9j/',
+        image: 'data:image/webp;base64,UklGRg==',
         max_tokens: 1200,
         temperature: 0,
       }),

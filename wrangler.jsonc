@@ -37,6 +37,10 @@
     "MAX_UPLOAD_BYTES": "10485760"
   },
   "ai": {
-    "binding": "AI"
+    "binding": "AI",
+    "remote": true
+  },
+  "images": {
+    "binding": "IMAGES"
   }
 }

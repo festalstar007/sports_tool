@@ -72,7 +72,7 @@ pnpm exec playwright install chromium
 pnpm exec wrangler login
 ```
 
-创建 D1 数据库和私有 R2 bucket：
+创建 D1 数据库和私有 R2 bucket。图片转换由 `wrangler.jsonc` 中的 `IMAGES` binding 提供，无需另建存储桶：
 
 ```bash
 pnpm exec wrangler d1 create sports-tool
@@ -89,7 +89,7 @@ pnpm db:migrate:remote
 
 ## 5. 启用 Workers AI
 
-当前生产配置使用 `AI` binding 和视觉模型 `@cf/meta/llama-3.2-11b-vision-instruct`。模型适配集中在 `src/worker/services/recognition-service.ts`，图片以带 MIME 类型的 Base64 data URL 发送，模型输出仍须通过 Zod 校验后才能进入确认页。
+当前生产配置使用 `AI` binding 和视觉模型 `@cf/meta/llama-3.2-11b-vision-instruct`。模型适配集中在 `src/worker/services/recognition-service.ts`，转换后的 WebP 以带 MIME 类型的 Base64 data URL 发送，模型输出仍须通过 Zod 校验后才能进入确认页。本地 D1/R2 使用模拟资源；启用模型时，`AI` binding 通过远程连接调用 Cloudflare，可能消耗 Workers AI 免费额度。
 
 首次使用该模型前，账户所有者必须接受 Meta Llama 3.2 License 和 AUP。使用具有 `Workers AI Write` 权限的临时 API Token 执行以下命令，令牌不要写入仓库或聊天记录：
 

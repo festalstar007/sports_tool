@@ -83,8 +83,8 @@ export function ActivityDetailPage() {
       )}
       {activity.importId && (
         <section className="original-image-card">
-          <h2>原始截图</h2>
-          <img src={`/api/imports/${activity.importId}/image`} alt="该运动记录的原始截图" />
+          <h2>运动截图</h2>
+          <img src={`/api/imports/${activity.importId}/image`} alt="该运动记录的截图" />
         </section>
       )}
       <div className="button-row">
@@ -93,7 +93,7 @@ export function ActivityDetailPage() {
           className="danger-button"
           type="button"
           disabled={remove.isPending}
-          onClick={() => window.confirm(activity.importId ? '确定删除这条运动记录和原始截图吗？' : '确定删除这条运动记录吗？') && remove.mutate()}
+          onClick={() => window.confirm(activity.importId ? '确定删除这条运动记录和截图吗？' : '确定删除这条运动记录吗？') && remove.mutate()}
         >
           {remove.isPending ? '删除中…' : '删除'}
         </button>
