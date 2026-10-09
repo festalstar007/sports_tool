@@ -149,4 +149,28 @@ describe('recognizeScreenshot', () => {
     expect(result.errorCode).toBe('AI_SCHEMA_INVALID');
     expect(result.rawResponse).toBe('{"sportType":"walking"}');
   });
+
+  it('repairs an unescaped quote in copied pace text and keeps the original response', async () => {
+    const malformed = JSON.stringify(validRawResponse).replace('\\"/公里', '"/公里');
+    const run = vi.fn().mockResolvedValue({ response: malformed });
+
+    const result = await recognizeScreenshot(createEnv(run), new ArrayBuffer(0), 'image/webp');
+
+    expect(result.errorCode).toBeNull();
+    expect(result.rawResponse).toBe(malformed);
+    expect(result.extraction.distanceMeters).toBe(2210);
+    expect(result.extraction.warnings).toContain('AI 输出包含未转义的引号，已自动修复；请仔细核对识别数据');
+  });
+
+  it('keeps malformed AI JSON for diagnosis and offers manual review instead of exposing a parser error', async () => {
+    const malformed = '{"schemaVersion":1,"sportType":null,"startedAtLocal":"2026年10月8日 20:03","distanceText":"3.94 公里","durationText":"00:39:05","caloriesText":"287 千卡     ","avgPaceText":"9\'55"/公里","avgSpeedText":"6.05 公里/小时",}';
+    const run = vi.fn().mockResolvedValue({ response: malformed });
+
+    const result = await recognizeScreenshot(createEnv(run), new ArrayBuffer(0), 'image/webp');
+
+    expect(result.errorCode).toBe('AI_JSON_INVALID');
+    expect(result.errorMessage).toBe('识别结果格式无效，请手工填写或稍后重试');
+    expect(result.rawResponse).toBe(malformed);
+    expect(result.extraction.sportType).toBeNull();
+  });
 });

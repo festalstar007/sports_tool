@@ -3,7 +3,7 @@
 ## 1. 工程检查
 
 - [ ] 仓库只有 `pnpm-lock.yaml`，没有 npm/Yarn 锁文件。
-- [ ] `package.json` 声明 `pnpm@12.3.4`。
+- [ ] `package.json` 声明 `pnpm@12.6.0`。
 - [ ] `pnpm typecheck` 通过。
 - [ ] `pnpm lint` 通过。
 - [ ] `pnpm test` 通过。

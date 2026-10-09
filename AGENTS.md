@@ -11,7 +11,7 @@
 - 只使用 `pnpm`，不得运行 `npm install`、`npm ci`、`yarn` 或生成相应锁文件。
 - Node.js 必须为 22 或更高版本，推荐使用 `.nvmrc` 指定的 Node.js 24；不得用 Node.js 20 运行当前 Wrangler。
 - 提交并维护唯一的 `pnpm-lock.yaml`。
-- `package.json` 必须包含 `"packageManager": "pnpm@12.3.4"`。
+- `package.json` 必须包含 `"packageManager": "pnpm@12.6.0"`。
 - 工程根目录固定为 `/home/zhang/fs/code/project/sports_demo`；必须在此目录原地初始化和开发，不得再创建嵌套的 `sports-tool/`、`sports_demo/` 或其他工程目录。
 - 第一版采用一个仓库、一个部署单元，不拆微服务，不引入 monorepo。
 - 前端使用 React + TypeScript + Vite；API 使用同一 Cloudflare Worker 内的 Hono。

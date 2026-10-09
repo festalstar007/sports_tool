@@ -42,6 +42,12 @@ export function ImportReviewPage() {
           )}
         </div>
       </section>
+      {item.extraction?.warnings && item.extraction.warnings.length > 0 && (
+        <aside className="warning-box" role="status">
+          <strong>识别提示</strong>
+          {item.extraction.warnings.map((warning, index) => <p key={`${index}-${warning}`}>{warning}</p>)}
+        </aside>
+      )}
       <ActivityForm
         key={item.updatedAt}
         initialValues={recognitionToForm(item.extraction)}

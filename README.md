@@ -46,13 +46,13 @@ pnpm db:migrate:local
 pnpm dev
 ```
 
-最新 Wrangler 要求 Node.js 22 或更高版本；推荐使用 Node.js 24。工程提供 `.nvmrc`，使用 nvm 时可执行 `nvm use`。
+当前本地使用 Node.js 24.21.0（Wrangler 要求至少 22）；工程提供 `.nvmrc`，使用 nvm 时可执行 `nvm use`。
 
 禁止生成或提交 `package-lock.json`、`npm-shrinkwrap.json`、`yarn.lock`。创建 `package.json` 时应声明：
 
 ```json
 {
-  "packageManager": "pnpm@12.3.4",
+  "packageManager": "pnpm@12.6.0",
   "engines": {
     "node": ">=22"
   }

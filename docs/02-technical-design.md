@@ -26,8 +26,8 @@ Cloudflare Access 位于整个应用之前
 
 ## 2. 技术栈
 
-- Node.js `>=22`，推荐 Node.js 24；项目验证环境为 `24.19.0`。
-- pnpm `12.3.4`，唯一允许的包管理器。
+- Node.js `>=22`，当前本地版本为 `24.21.0`。
+- pnpm `12.6.0`，唯一允许的包管理器。
 - React、TypeScript、Vite。
 - Cloudflare Vite 插件及 Wrangler。
 - Hono：API 路由与中间件。

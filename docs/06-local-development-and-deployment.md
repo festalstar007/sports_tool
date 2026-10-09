@@ -4,8 +4,8 @@
 
 ## 1. 环境要求
 
-- Node.js 22 或更高，推荐 Node.js 24；工程根目录提供 `.nvmrc`。
-- pnpm 12.3.4；依赖由 pnpm 的全局内容寻址仓库复用，不要改用 npm 或 Yarn。
+- Node.js 22 或更高，当前本地使用 Node.js 24.21.0；工程根目录提供 `.nvmrc`。
+- pnpm 12.6.0；依赖由 pnpm 的全局内容寻址仓库复用，不要改用 npm 或 Yarn。
 - 本地开发无需预先创建 D1、R2 或 Workers AI 资源，Wrangler 会使用 `.wrangler/` 下的本地状态。
 
 ```bash

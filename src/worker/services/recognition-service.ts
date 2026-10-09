@@ -38,6 +38,7 @@ const prompt = `你是运动截图 OCR 提取器。只输出一个 JSON 对象�
 运动类型只能按页面标题判断：“户外跑步”返回 running，“户外步行”返回 walking。
 startedAtLocal 只抄录运动详情正文中的完整日期时间。
 每个 *Text 字段都必须保留图片中的完整数字和单位，包括小数点、冒号、单引号、双引号及千位逗号；看不清或图片中没有的字段填 null，禁止用 0 代替缺失值。
+所有字符串都必须符合 JSON 转义规则，尤其是配速中的双引号要转义；对象最后一个字段后不要添加逗号。
 平均步频和平均步幅是两个不同字段，不得交换。累计爬升和累计下降必须分别读取。
 confidence 只包含置信度为 0 到 1 数字的字段；不确定字段不要写入 confidence。没有警告时 warnings 返回空数组。
 返回且只返回这些字段：schemaVersion 固定为 1；sportType；startedAtLocal；distanceText；durationText；caloriesText；avgPaceText；avgSpeedText；avgCadenceText；avgStrideText；stepsText；avgHeartRateText；elevationGainText；elevationLossText；confidence；warnings。`;
@@ -89,9 +90,62 @@ function extractPayload(response: unknown): { payload: unknown; raw: string } {
   return { payload: response, raw: JSON.stringify(response) };
 }
 
+function escapeStrayJsonQuotes(text: string): string {
+  let inString = false;
+  let escaped = false;
+  let repaired = '';
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (escaped) {
+      repaired += char;
+      escaped = false;
+    } else if (inString && char === '\\') {
+      repaired += char;
+      escaped = true;
+    } else if (char === '"') {
+      if (!inString) {
+        inString = true;
+        repaired += char;
+      } else {
+        const next = text.slice(index + 1).trimStart()[0];
+        if (next !== undefined && !',:}]'.includes(next)) {
+          repaired += '\\"';
+        } else {
+          inString = false;
+          repaired += char;
+        }
+      }
+    } else {
+      repaired += char;
+    }
+  }
+
+  return repaired;
+}
+
 function parseJsonText(raw: string): unknown {
   const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  return JSON.parse(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch (error) {
+    const repaired = escapeStrayJsonQuotes(cleaned);
+    if (repaired === cleaned) throw error;
+    try {
+      const parsed: unknown = JSON.parse(repaired);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return parsed;
+      const result = parsed as Record<string, unknown>;
+      return {
+        ...result,
+        warnings: [
+          ...(Array.isArray(result.warnings) ? result.warnings : []),
+          'AI 输出包含未转义的引号，已自动修复；请仔细核对识别数据',
+        ],
+      };
+    } catch {
+      throw error;
+    }
+  }
 }
 
 function normalizeModelPayload(payload: unknown): unknown {
@@ -238,7 +292,19 @@ export async function recognizeScreenshot(
       temperature: 0,
     });
     const { payload, raw } = extractPayload(response);
-    const parsed = rawRecognitionSchema.safeParse(normalizeModelPayload(payload));
+    let normalized: unknown;
+    try {
+      normalized = normalizeModelPayload(payload);
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+      return {
+        extraction: emptyRecognition(timezone),
+        rawResponse: raw,
+        errorCode: 'AI_JSON_INVALID',
+        errorMessage: '识别结果格式无效，请手工填写或稍后重试',
+      };
+    }
+    const parsed = rawRecognitionSchema.safeParse(normalized);
     if (!parsed.success) {
       return {
         extraction: emptyRecognition(timezone),
