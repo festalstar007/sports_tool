@@ -81,3 +81,13 @@ pnpm deploy
 
 - 具体 Workers AI 视觉模型：实现阶段从 Cloudflare 免费计划及免费额度内可用的视觉模型中选择，通过 `AI_MODEL` 配置，不在业务代码中散落模型名称。
 - 样例截图的具体来源品牌；数据库中的 `source_app` 允许为空，识别逻辑不依赖品牌名称。
+
+## Agent skills
+
+### Issue tracker
+
+事项与规格使用仓库内的本地 Markdown 跟踪，位于 `.scratch/<feature-slug>/`。详见 `docs/agents/issue-tracker.md`。
+
+### Domain docs
+
+本仓库采用单一上下文布局：根目录 `CONTEXT.md` 与 `docs/adr/`。详见 `docs/agents/domain.md`。
